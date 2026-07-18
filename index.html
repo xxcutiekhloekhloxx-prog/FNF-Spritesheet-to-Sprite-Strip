@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Spritesheetoy</title>
+  <style>
+    :root{
+      --bg:#0f1220;
+      --panel:#171b2e;
+      --panel2:#202643;
+      --text:#e8ecff;
+      --muted:#9aa4cf;
+      --accent:#7c5cff;
+      --accent2:#33d1a0;
+      --danger:#ff5c7a;
+      --border:#2d3560;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:linear-gradient(180deg,#0b0e18,#11162a);
+      color:var(--text);
+      min-height:100vh;
+    }
+    header{
+      padding:18px 16px;
+      background:rgba(23,27,46,.9);
+      border-bottom:1px solid var(--border);
+      position:sticky;
+      top:0;
+      backdrop-filter:blur(8px);
+      z-index:5;
+    }
+    h1{margin:0;font-size:22px}
+    .sub{color:var(--muted);font-size:13px;margin-top:4px}
+    main{padding:16px;max-width:980px;margin:0 auto}
+    .card{
+      background:rgba(23,27,46,.95);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px;
+      margin-bottom:14px;
+      box-shadow:0 10px 30px rgba(0,0,0,.18);
+    }
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .col{flex:1;min-width:250px}
+    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+    input,button,textarea{
+      width:100%;
+      border:none;
+      border-radius:12px;
+      padding:12px;
+      font-size:15px;
+    }
+    input,textarea{
+      background:var(--panel2);
+      color:var(--text);
+      outline:none;
+      border:1px solid var(--border);
+    }
+    textarea{min-height:120px;resize:vertical;font-family:monospace}
+    button{
+      background:var(--accent);
+      color:white;
+      font-weight:bold;
+      cursor:pointer;
+    }
+    button.secondary{background:var(--panel2)}
+    button.green{background:var(--accent2);color:#072117}
+    button.red{background:var(--danger)}
+    .btnrow{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+    canvas{
+      width:100%;
+      max-width:100%;
+      background:#0b0f1d;
+      border:1px solid var(--border);
+      border-radius:12px;
+      image-rendering:pixelated;
+    }
+    .previewWrap{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    .small{font-size:12px;color:var(--muted)}
+    .status{margin-top:10px;font-size:13px;color:var(--muted)}
+    img{max-width:100%;display:block}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Spritesheetoy</h1>
+    <div class="sub">Single-file FNF spritesheet helper</div>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="row">
+        <div class="col">
+          <label>Character name</label>
+          <input id="charName" value="spritesheetoy" />
+        </div>
+        <div class="col">
+          <label>Frame width</label>
+          <input id="frameW" type="number" value="150" />
+        </div>
+        <div class="col">
+          <label>Frame height</label>
+          <input id="frameH" type="number" value="150" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <label>Select PNG sheet or frame image</label>
+          <input id="fileInput" type="file" accept="image/*" />
+        </div>
+      </div>
+      <div class="btnrow">
+        <button id="loadBtn" class="green">Load Image</button>
+        <button id="exportXmlBtn" class="secondary">Export XML</button>
+        <button id="exportJsonBtn" class="secondary">Export Data</button>
+        <button id="clearBtn" class="red">Clear</button>
+      </div>
+      <div class="status" id="status">No image loaded.</div>
+    </div>
+
+    <div class="card previewWrap">
+      <div>
+        <label>Preview</label>
+        <canvas id="canvas" width="600" height="400"></canvas>
+      </div>
+      <div>
+        <label>Output</label>
+        <textarea id="output" readonly placeholder="Exported XML / JSON will appear here..."></textarea>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const exportXmlBtn = document.getElementById('exportXmlBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let img = new Image();
+    let loaded = false;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#0b0f1d';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (!loaded) {
+        ctx.fillStyle = '#9aa4cf';
+        ctx.font = '20px Arial';
+        ctx.fillText('Load an image to preview', 20, 40);
+        return;
+      }
+
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+
+      ctx.strokeStyle = 'rgba(124,92,255,.7)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+    }
+
+    function buildXml() {
+      const name = document.getElementById('charName').value.trim() || 'spritesheetoy';
+      const fw = parseInt(document.getElementById('frameW').value || '150', 10);
+      const fh = parseInt(document.getElementById('frameH').value || '150', 10);
+
+      return `<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="${name}.png">
+  <SubTexture name="${name}_0" x="0" y="0" width="${fw}" height="${fh}" frameX="0" frameY="0" frameWidth="${fw}" frameHeight="${fh}" />
+</TextureAtlas>`;
+    }
+
+    function buildJson() {
+      const name = document.getElementById('charName').value.trim() || 'spritesheetoy';
+      const fw = parseInt(document.getElementById('frameW').value || '150', 10);
+      const fh = parseInt(document.getElementById('frameH').value || '150', 10);
+
+      return JSON.stringify({
+        image: `${name}.png`,
+        frames: [
+          { name: `${name}_0`, x: 0, y: 0, w: fw, h: fh, frameX: 0, frameY: 0, frameWidth: fw, frameHeight: fh }
+        ]
+      }, null, 2);
+    }
+
+    function loadImageFromFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        img = new Image();
+        img.onload = () => {
+          loaded = true;
+          status.textContent = `Loaded: ${file.name} (${img.width}x${img.height})`;
+          draw();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    loadBtn.onclick = () => loadImageFromFile(fileInput.files[0]);
+    exportXmlBtn.onclick = () => { output.value = buildXml(); status.textContent = 'XML exported.'; };
+    exportJsonBtn.onclick = () => { output.value = buildJson(); status.textContent = 'JSON exported.'; };
+    clearBtn.onclick = () => {
+      fileInput.value = '';
+      output.value = '';
+      loaded = false;
+      status.textContent = 'Cleared.';
+      draw();
+    };
+
+    draw();
+  </script>
+</body>
+          </html>
